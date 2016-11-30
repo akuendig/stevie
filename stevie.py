@@ -40,89 +40,74 @@ def open_fragment(prefix, id, x, y, width, height):
     return PIL.Image.open(io.BytesIO(data))
 
 
-def download_loop(prefix, id, width, height, x0_delta, x0_max, y0_delta, y0_max, crop_x_norm, crop_x_last, crop_y_norm,
-                  crop_y_last):
-    x0 = 0
-    y0 = -y0_delta*3
+def download_loop(prefix, id, width, height, x0_delta, y0_delta, zoom_level):
+    full_image = PIL.Image.new("RGB", (width * (zoom_level + 1), height * (zoom_level + 1)))
 
-    full_image = PIL.Image.new("RGB", (4100, 4100))
-    full_x = 0
-    full_y = 0
+    crop_x = x0_delta * zoom_level
+    crop_y = y0_delta * zoom_level
 
-    while y0 < y0_max:
-        x0 = 0
-        full_x = 0
+    # x0 = 0
+    # y0 = 0
+    # full_x = 0
+    # full_y = 0
+    x0 = width
+    y0 = height
+    full_x = width * zoom_level
+    full_y = height * zoom_level
 
-        if (y0 + y0_delta) < y0_max:
-            crop_y = crop_y_norm
-        else:
-            crop_y = crop_y_last
+    # while y0 < height:
+    while y0 > 0:
+        x0 = width
+        y0 -= y0_delta
+        full_x = width * zoom_level
+        full_y -= crop_y
+        # x0 = 0
+        # full_x = 0
 
-        while x0 < x0_max:
+        # while x0 < width:
+        while x0 > 0:
+            x0 -= x0_delta
+            full_x -= crop_x
             with open_fragment(prefix, id, x0, y0, width, height) as img:
-                if (x0 + x0_delta) < x0_max:
-                    crop_x = crop_x_norm
-                else:
-                    crop_x = crop_x_last
-
-                img = img.crop((crop_x, crop_y, width, height))
-                full_image.paste(img, (full_x, full_y))
+                full_image.paste(
+                    img.crop((0, 0, crop_x, crop_y)),
+                    (full_x, full_y))
+                full_image.paste(
+                    img.crop((width - crop_x, height - crop_y, width, height)),
+                    (full_x + width - crop_x, full_y + height - crop_y))
                 img.close()
 
-            x0 += x0_delta
-            full_x += width - crop_x
+            # x0 += x0_delta
+            # full_x += crop_x
 
             time.sleep(.5 + random.uniform(0, .5))
 
-        y0 += y0_delta
-        full_y += height - crop_y
+        # y0 += y0_delta
+        # full_y += crop_y
 
-    return full_image.crop((0, 0, full_x, full_y))
+        full_image.save("{}.jpg".format(id))
+
+    return full_image.crop((0, 0, width * zoom_level, height * zoom_level))
 
 
 def download_portrait(prefix, id):
-    width = 350
-    height = 525
+    width = 266
+    height = 400
+    x0_delta = 32  # = 266 / 8
+    y0_delta = 15  # = 400 / 8 / 3
+    zoom_level = 8
 
-    x0_delta = 40  # 64
-    x0_max = 320 + 10
-
-    y0_delta = 40  # 90 #128
-    y0_max = 480 + 10
-
-    crop_x = 30
-    crop_x_last = 141
-
-    crop_y = 204
-    crop_y_last = 371
-
-    img = download_loop(prefix, id, width, height, x0_delta, x0_max, y0_delta, y0_max, crop_x, crop_x_last, crop_y,
-                        crop_y_last)
-
-    # TODO: Figure out landscape crop
-    return img
+    return download_loop(prefix, id, width, height, x0_delta, y0_delta, zoom_level)
 
 
 def download_landscape(prefix, id):
-    width = 525
-    height = 350
+    width = 400
+    height = 266
+    x0_delta = 50  # = 400 / 8
+    y0_delta = 11  # = 266 / 8 / 3
+    zoom_level = 8
 
-    x0_delta = 60  # 64
-    x0_max = 480 + 10
-
-    y0_delta = 14  # 90 #128
-    y0_max = 306 + 10
-
-    crop_x = 45
-    crop_x_last = 211
-
-    crop_y = 239
-    crop_y_last = 253
-
-    img = download_loop(prefix, id, width, height, x0_delta, x0_max, y0_delta, y0_max, crop_x, crop_x_last, crop_y,
-                        crop_y_last)
-
-    return img.crop((0, 98, img.width-62, img.height))
+    return download_loop(prefix, id, width, height, x0_delta, y0_delta, zoom_level)
 
 
 def download_id(prefix, id):
